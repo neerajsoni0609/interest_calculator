@@ -1,0 +1,100 @@
+from datetime import datetime, timedelta
+import csv
+from decimal import Decimal, getcontext
+
+# increase precision for financial calculations
+getcontext().prec = 28
+
+def convert_quarterly_to_daily_rate(nominal_rate_percent, day_count_base=365):
+    """
+    Convert a nominal APR (quoted as annual nominal rate compounded quarterly)
+    to an effective daily rate using the chosen day count base.
+    """
+    r_nominal = Decimal(nominal_rate_percent) / Decimal(100)
+    ear = (Decimal(1) + r_nominal / Decimal(4)) ** Decimal(4) - Decimal(1)
+    r_daily = (Decimal(1) + ear) ** (Decimal(1) / Decimal(day_count_base)) - Decimal(1)
+    return r_daily
+
+def simulate_daily_compounding(principal, nominal_rate_percent, fd_start_str, fd_end_str,
+                               day_count_base=365, include_start=False):
+    """
+    Simulate daily compounding between fd_start and fd_end inclusive.
+    By default the simulation starts the day AFTER fd_start (exclude first day).
+    Set include_start=True to include fd_start itself.
+    Returns (daily_report, summary) where daily_report is a list of dicts and
+    summary contains final_balance and total_interest as Decimal.
+    """
+    try:
+        fd_start = datetime.strptime(fd_start_str, "%d-%m-%Y")
+        fd_end = datetime.strptime(fd_end_str, "%d-%m-%Y")
+    except ValueError as e:
+        raise ValueError("Dates must be in dd-mm-yyyy format") from e
+
+    if principal < 0:
+        raise ValueError("Principal must be non-negative")
+
+    # If user wants actual day-count base (e.g., 365 or 366 depending on year),
+    # they can pass it in. Default is 365.
+    r_daily = convert_quarterly_to_daily_rate(nominal_rate_percent, day_count_base)
+
+    balance = Decimal(principal)
+    daily_report = []
+
+    current_date = fd_start if include_start else fd_start + timedelta(days=1)
+
+    if current_date > fd_end:
+        # empty period: return empty report and summary equal to principal
+        summary = {
+            "final_balance": balance,
+            "total_interest": Decimal(0)
+        }
+        return daily_report, summary
+
+    while current_date <= fd_end:
+        interest_today = balance * r_daily
+        balance += interest_today
+        daily_report.append({
+            "date": current_date.strftime("%d-%m-%Y"),
+            "interest_today": float(interest_today.quantize(Decimal('0.01'))),
+            "balance": float(balance.quantize(Decimal('0.01')))
+        })
+        current_date += timedelta(days=1)
+
+    summary = {
+        "final_balance": balance.quantize(Decimal('0.01')),
+        "total_interest": (balance - Decimal(principal)).quantize(Decimal('0.01'))
+    }
+    return daily_report, summary
+
+def export_to_csv(daily_report, filename="daily_balance_report.csv"):
+    with open(filename, mode="w", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=["date", "interest_today", "balance"])
+        writer.writeheader()
+        writer.writerows(daily_report)
+    print(f"Report exported to {filename}")
+
+def print_daily_report(daily_report):
+    print(f"{'Date':12} | {'Interest':12} | {'Balance':12}")
+    print("-"*40)
+    for entry in daily_report:
+        print(f"{entry['date']:12} | {entry['interest_today']:12.2f} | {entry['balance']:12.2f}")
+
+# ---------------- Example run ----------------
+if __name__ == "__main__":
+    principal = float(input("Enter the principal amount (₹): "))
+    nominal_rate = float(input("Enter the nominal rate (%): "))
+    fd_start = input("Enter the FD start date (dd-mm-yyyy): ")
+    fd_end = input("Enter the FD end date (dd-mm-yyyy): ")
+
+    daily_report, summary = simulate_daily_compounding(principal, nominal_rate, fd_start, fd_end)
+    if daily_report:
+        print_daily_report(daily_report)
+        export_to_csv(daily_report)
+    else:
+        print("No compounding days in the given range (fd_end <= fd_start).")
+
+    final_balance = float(summary["final_balance"])
+    interest = float(summary["total_interest"])
+    print("\nSummary:")
+    print(f"Final balance = ₹{final_balance:,.2f}")
+    print(f"Total interest = ₹{interest:,.2f}")

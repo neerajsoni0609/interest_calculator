@@ -1,6 +1,8 @@
-import calculate_interest_rate
-import calculate_fd_interest_by_date
 import sys
+
+from src.calculate_interest_rate import Rate
+from src.calculate_fd_interest_by_date import Interest
+from src.calculate_bank_fd_interest_report import generate_daily_balance_report
 
 def execute_operation():
     options = '''Please select the appropriate option:
@@ -8,24 +10,28 @@ def execute_operation():
 2. Calculate Interest rate by providing days
 3. Calculate Maturity amount by providing dates
 4. Calculate Maturity amount by providing days
-5. Exit
+5. Generate daily interest rate report
+6. Exit
 Please enter the option: '''
 
     option = int(input(options))
     match option:
         case 1:
-            calculate_interest_rate.Rate().calculate_rate_by_date()
+            Rate().calculate_rate_by_date()
 
         case 2:
-            calculate_interest_rate.Rate().calculate_rate_by_days()
+            Rate().calculate_rate_by_days()
 
         case 3:
-            calculate_fd_interest_by_date.Interest().calculate_amount_by_date()
+            Interest().calculate_amount_by_date()
 
         case 4:
-            calculate_fd_interest_by_date.Interest().calculate_amount_by_days()
-        
+            Interest().calculate_amount_by_days()
+
         case 5:
+            generate_daily_balance_report()
+
+        case 6:
             sys.exit(0)
 
         case _:

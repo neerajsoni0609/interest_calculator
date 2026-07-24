@@ -1,8 +1,8 @@
-import common.date_operations
+import src.common.date_operations
 
 class Rate:
     def __init__(self) -> None:
-        self.year_operations = common.date_operations.Year()
+        self.year_operations = src.common.date_operations.Year()
 
     def _take_inputs_by_date(self):
         self.principle = int(input("Principle Amount: "))
